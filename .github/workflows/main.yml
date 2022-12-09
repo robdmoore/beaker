@@ -12,19 +12,29 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Install poetry
+        run: pipx install poetry
+
+      - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: 3.10.4
+          python-version: "3.10"
+          cache: "poetry"
 
-      - name: Install python dependencies
-        run: make setup-development
+      - name: Install dependencies
+        run: poetry install --no-interaction
 
-      - name: lint
-        run: make lint
+      - name: formatting
+        run: poetry run black --check .
+
+      - name: linting
+        run: poetry run flake8
+
+      - name: type-checking
+        run: poetry run mypy
 
       - name: gen-check
-        run: make gen-check
+        run: source .venv/bin/activate && ./scripts/gen.sh -c
 
       - name: Clone Algorand Sandbox
         run: cd .. && git clone https://github.com/algorand/sandbox.git
@@ -40,7 +50,13 @@ jobs:
         run: sleep 10
 
       - name: Tests
-        run: make tests
+        run: poetry run pytest --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=app tests/ | tee pytest-coverage.txt
+
+      - name: Pytest coverage comment
+        uses: MishaKav/pytest-coverage-comment@main
+        with:
+          pytest-coverage-path: ./pytest-coverage.txt
+          junitxml-path: ./pytest.xml
 
       - name: Stop running images
         run: cd ../sandbox && ./sandbox down 

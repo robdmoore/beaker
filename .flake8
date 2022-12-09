@@ -8,6 +8,10 @@ ignore =
     W503,
     E741,
 
+exclude =
+    __pycache__
+    .venv
+    examples
 
 per-file-ignores =
     */__init__.py:          F401
