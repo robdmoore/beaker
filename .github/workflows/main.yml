@@ -36,27 +36,20 @@ jobs:
       - name: gen-check
         run: source .venv/bin/activate && ./scripts/gen.sh -c
 
-      - name: Clone Algorand Sandbox
-        run: cd .. && git clone https://github.com/algorand/sandbox.git
+      - name: start sandbox
+        run: docker compose up -d
 
-      - name: copy config
-        run: cp config.test ../sandbox/
-
-      - name: Run Algorand Sandbox
-        shell: 'script -q -e -c "bash {0}"' # hacky hack to make TTY work
-        run: cd ../sandbox && ./sandbox up test -v 
-
-      - name: Delay before testing
+      - name: delay before testing
         run: sleep 10
 
-      - name: Tests
-        run: poetry run pytest --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=app tests/ | tee pytest-coverage.txt
+      - name: pytest + coverage
+        run: poetry run pytest --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=beaker | tee pytest-coverage.txt
 
-      - name: Pytest coverage comment
+      - name: pytest coverage comment
         uses: MishaKav/pytest-coverage-comment@main
         with:
           pytest-coverage-path: ./pytest-coverage.txt
           junitxml-path: ./pytest.xml
 
-      - name: Stop running images
-        run: cd ../sandbox && ./sandbox down 
+      - name: stop sandbox
+        run: docker compose down
