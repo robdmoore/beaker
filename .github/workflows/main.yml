@@ -33,9 +33,6 @@ jobs:
       - name: type-checking
         run: poetry run mypy
 
-      - name: gen-check
-        run: source .venv/bin/activate && ./scripts/gen.sh -c
-
       - name: start sandbox
         run: docker compose up -d
 

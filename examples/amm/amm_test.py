@@ -1,8 +1,10 @@
 import copy
 
 import itertools
+import subprocess
 import pytest
 import typing
+from pathlib import Path
 
 from algosdk.atomic_transaction_composer import (
     AtomicTransactionComposer,
@@ -913,3 +915,18 @@ def _opt_in_to_token(addr: str, signer: AccountTransactionSigner, id: int):
 
 def _addr_to_hex(addr: str) -> str:
     return decode_address(addr).hex()
+
+
+def test_generated():
+    """Test that the output of ConstantProductAMM hasn't changed"""
+    this_dir = Path(__file__).parent.resolve()
+    output_dir = this_dir / "artifacts"
+    ConstantProductAMM().dump(str(output_dir))
+    assert output_dir.is_dir()
+    git_diff = subprocess.run(
+        ["git", "diff", "--exit-code", "--no-ext-diff", "--no-color", str(output_dir)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    assert git_diff.returncode == 0, git_diff.stdout.strip()
