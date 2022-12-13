@@ -18,6 +18,7 @@ from algosdk.encoding import decode_address
 from beaker import client, sandbox, testing, consts, decorators
 from beaker.client.application_client import ApplicationClient, ProgramAssertion
 from beaker.client.logic_error import LogicException
+from tests.conftest import check_application_artifacts_output_stability
 
 from .amm import ConstantProductAMM, ConstantProductAMMErrors
 
@@ -917,16 +918,6 @@ def _addr_to_hex(addr: str) -> str:
     return decode_address(addr).hex()
 
 
-def test_generated():
-    """Test that the output of ConstantProductAMM hasn't changed"""
-    this_dir = Path(__file__).parent.resolve()
-    output_dir = this_dir / "artifacts"
-    ConstantProductAMM().dump(str(output_dir))
-    assert output_dir.is_dir()
-    git_diff = subprocess.run(
-        ["git", "diff", "--exit-code", "--no-ext-diff", "--no-color", str(output_dir)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-    assert git_diff.returncode == 0, git_diff.stdout.strip()
+def test_output_stability():
+    app = ConstantProductAMM()
+    check_application_artifacts_output_stability(app, dir_name="artifacts")
