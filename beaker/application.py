@@ -15,7 +15,6 @@ from pyteal import (
     OnCompleteAction,
     OptimizeOptions,
     Router,
-    Bytes,
     Approve,
 )
 
@@ -36,11 +35,9 @@ from beaker.state import (
     AccountStateValue,
     ApplicationStateValue,
     ReservedApplicationStateValue,
-    prefix_key_gen,
 )
 from beaker.errors import BareOverwriteError
 from beaker.precompile import AppPrecompile, LSigPrecompile
-from beaker.lib.storage import List
 
 
 def get_method_spec(fn: HandlerFunc) -> Method:
@@ -58,16 +55,49 @@ def get_method_selector(fn: HandlerFunc) -> bytes:
     return get_method_spec(fn).get_selector()
 
 
-class Application:
+class ApplicationMeta(type):
+    def __new__(mcs, name, bases, dct):
+        collect_keys = ["_acct_vals", "_app_vals", "_precompiles"]
+        for key in collect_keys:
+            dct[key] = {}
+        for base in bases:
+            if issubclass(base, Application):
+                for key in collect_keys:
+                    dct[key].update(getattr(base, key, {}))
+        cls = super().__new__(mcs, name, bases, dct)
+        return cls
+
+
+class Application(metaclass=ApplicationMeta):
     """Application contains logic to detect State Variables, Bare methods
     ABI Methods and internal subroutines.
 
     It should be subclassed to provide basic behavior to a custom application.
     """
 
+    # class state attribute accumulators
+    _acct_vals: dict[
+        str, AccountStateValue | ReservedAccountStateValue | AccountStateBlob
+    ]
+    _app_vals: dict[
+        str,
+        ApplicationStateValue | ReservedApplicationStateValue | ApplicationStateBlob,
+    ]
+    _precompiles: dict[str, AppPrecompile | LSigPrecompile]
+
     # Convenience constant fields
     address: Final[Expr] = Global.current_application_address()
     id: Final[Expr] = Global.current_application_id()
+
+    # def __new__(cls, *args, **kwargs):
+    #     self = super().__new__(cls)
+    #     return self
+
+    # def __init_subclass__(cls, **kwargs):
+    #     super().__init_subclass__()
+    #     cls._acct_vals = {}
+    #     cls._app_vals = {}
+    #     cls._precompiles = {}
 
     def __init__(self, version: int = MAX_TEAL_VERSION):
         """Initialize the Application, finding all the custom attributes and initializing the Router"""
@@ -99,64 +129,9 @@ class Application:
         self.hints: dict[str, MethodHints] = {}
         self.bare_externals: dict[str, OnCompleteAction] = {}
         self.methods: dict[str, tuple[ABIReturnSubroutine, Optional[MethodConfig]]] = {}
-        self.precompiles: dict[str, AppPrecompile | LSigPrecompile] = {}
-
-        acct_vals: dict[
-            str, AccountStateValue | ReservedAccountStateValue | AccountStateBlob
-        ] = {}
-        app_vals: dict[
-            str,
-            ApplicationStateValue
-            | ReservedApplicationStateValue
-            | ApplicationStateBlob,
-        ] = {}
 
         for name in names_:
             bound_attr = getattr(self, name)
-            # Check for state vals
-            handled = True
-            match bound_attr:
-
-                # Account state
-                case AccountStateValue():
-                    # if bound_attr.key is None:
-                    #     bound_attr.key = Bytes(name)
-                    acct_vals[name] = bound_attr
-                case ReservedAccountStateValue():
-                    if bound_attr.key_generator is None:
-                        bound_attr.set_key_gen(prefix_key_gen(name))
-                    acct_vals[name] = bound_attr
-                case AccountStateBlob():
-                    acct_vals[name] = bound_attr
-
-                # App state
-                case ApplicationStateBlob():
-                    app_vals[name] = bound_attr
-                case ApplicationStateValue():
-                    if bound_attr.key is None:
-                        bound_attr.key = Bytes(name)
-                    app_vals[name] = bound_attr
-                case ReservedApplicationStateValue():
-                    if bound_attr.key_generator is None:
-                        bound_attr.set_key_gen(prefix_key_gen(name))
-                    app_vals[name] = bound_attr
-
-                # Precompiles
-                case LSigPrecompile() | AppPrecompile():
-                    self.precompiles[name] = bound_attr
-
-                # Boxes
-                case List():
-                    if bound_attr.name is None:
-                        bound_attr.name = Bytes(name)
-
-                # other - maybe method
-                case _:
-                    handled = False
-
-            # Already dealt with these, move on
-            if handled:
-                continue
 
             # Check for externals and internal methods
             handler_config = get_handler_config(bound_attr)
@@ -237,8 +212,9 @@ class Application:
             all_clear_states.pop() if len(all_clear_states) == 1 else None
         )
 
-        self.acct_state = AccountState(acct_vals)
-        self.app_state = ApplicationState(app_vals)
+        self.acct_state = AccountState(self._acct_vals)
+        self.app_state = ApplicationState(self._app_vals)
+        self.precompiles = self._precompiles.copy()
 
         # If there are no precompiles, we can build the programs
         # with what we already have and don't need to pass an

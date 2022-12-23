@@ -201,6 +201,11 @@ class ApplicationStateValue(StateValue):
         descr: Description of the state value to provide some information to clients
     """
 
+    def __set_name__(self, owner: type["Application"], name: str) -> None:
+        owner._app_vals[name] = self
+        if self.key is None:
+            self.key = Bytes(name)
+
     def __str__(self) -> str:
         return f"ApplicationStateValue {self.key}"
 
@@ -289,6 +294,11 @@ class ReservedApplicationStateValue(ReservedStateValue):
         if max_keys <= 0 or max_keys > MAX_GLOBAL_STATE:
             raise Exception(f"max keys expected to be between 0 and {MAX_GLOBAL_STATE}")
 
+    def __set_name__(self, owner: type["Application"], name: str) -> None:
+        owner._app_vals[name] = self
+        if self.key_generator is None:
+            self.set_key_gen(prefix_key_gen(name))
+
     def __getitem__(self, key_seed: Expr | abi.BaseType) -> ApplicationStateValue:
         """Method to access the state value with the key seed provided"""
         key = key_seed
@@ -328,7 +338,8 @@ class AccountStateValue(StateValue):
         super().__init__(stack_type, key, default, static, descr)
         self.acct: Expr = Txn.sender()
 
-    def __set_name__(self, owner: "Application", name: str) -> None:
+    def __set_name__(self, owner: type["Application"], name: str) -> None:
+        owner._acct_vals[name] = self
         if self.key is None:
             self.key = Bytes(name)
 
@@ -445,6 +456,11 @@ class ReservedAccountStateValue(ReservedStateValue):
         if max_keys <= 0 or max_keys > MAX_LOCAL_STATE:
             raise Exception(f"max keys expected to be between 0 and {MAX_LOCAL_STATE}")
 
+    def __set_name__(self, owner: type["Application"], name: str) -> None:
+        owner._acct_vals[name] = self
+        if self.key_generator is None:
+            self.set_key_gen(prefix_key_gen(name))
+
     def __getitem__(self, key_seed: Expr | abi.BaseType) -> AccountStateValue:
         """Access AccountState value given key_seed"""
         key = key_seed
@@ -525,6 +541,9 @@ class AccountStateBlob(StateBlob):
 
         super().__init__(self.blob._max_keys)
 
+    def __set_name__(self, owner: type["Application"], name: str) -> None:
+        owner._acct_vals[name] = self
+
     def __getitem__(self, acct: Expr) -> "AccountStateBlob":
         asv = copy(self)
         asv.acct = acct
@@ -550,6 +569,9 @@ class ApplicationStateBlob(StateBlob):
     def __init__(self, keys: Optional[int | list[int]] = None):
         self.blob = GlobalBlob(keys=keys)
         super().__init__(self.blob._max_keys)
+
+    def __set_name__(self, owner: type["Application"], name: str) -> None:
+        owner._app_vals[name] = self
 
     def initialize(self) -> Expr:
         return self.blob.zero()

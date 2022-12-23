@@ -291,6 +291,9 @@ class AppPrecompile:
         #: The App's clear program as a Precompile
         self.clear: Precompile = Precompile("")
 
+    def __set_name__(self, owner: type["Application"], name: str) -> None:
+        owner._precompiles[name] = self
+
     def compile(self, client: AlgodClient) -> None:
         """fully compile this app precompile by recursively
             compiling children depth first
@@ -349,6 +352,9 @@ class LSigPrecompile:
 
         #: The LogicSignature's logic as a Precompile
         self.logic: Precompile = Precompile("")
+
+    def __set_name__(self, owner: type["Application"], name: str) -> None:
+        owner._precompiles[name] = self
 
     def compile(self, client: AlgodClient) -> None:
         """

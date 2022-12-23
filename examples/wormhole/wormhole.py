@@ -117,7 +117,7 @@ class ContractTransferVAA:
         return Seq(*ops)
 
 
-class WormholeTransfer(Application, ABC):
+class WormholeTransfer(Application):
     """Wormhole Payload3 Message handler
 
     A Message transfer from another chain to Algorand  using the Wormhole protocol
@@ -143,7 +143,6 @@ class WormholeTransfer(Application, ABC):
             self.handle_transfer(ctvaa, output=output),
         )
 
-    @abstractmethod
     def handle_transfer(
         self, ctvaa: ContractTransferVAA, *, output: abi.DynamicBytes
     ) -> Expr:
@@ -156,4 +155,4 @@ class WormholeTransfer(Application, ABC):
         Returns:
             app specific byte array
         """
-        return Reject()
+        raise NotImplementedError()
