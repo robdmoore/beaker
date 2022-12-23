@@ -1,3 +1,4 @@
+import typing
 from abc import abstractmethod, ABC
 from copy import copy
 from typing import Callable, Mapping, cast, Any, Optional
@@ -27,6 +28,9 @@ from pyteal import (
 from beaker.lib.storage import LocalBlob
 from beaker.consts import MAX_GLOBAL_STATE, MAX_LOCAL_STATE
 from beaker.lib.storage.global_blob import GlobalBlob
+
+if typing.TYPE_CHECKING:
+    from beaker.application import Application
 
 
 def prefix_key_gen(prefix: str) -> SubroutineFnWrapper:
@@ -323,6 +327,10 @@ class AccountStateValue(StateValue):
     ):
         super().__init__(stack_type, key, default, static, descr)
         self.acct: Expr = Txn.sender()
+
+    def __set_name__(self, owner: "Application", name: str) -> None:
+        if self.key is None:
+            self.key = Bytes(name)
 
     def __str__(self) -> str:
         return f"AccountStateValue {self.acct} {self.key}"

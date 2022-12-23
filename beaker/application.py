@@ -73,18 +73,16 @@ class Application:
         """Initialize the Application, finding all the custom attributes and initializing the Router"""
         self.teal_version = version
 
-        # Get initial list of all attrs declared
-        initial_attrs = {
-            m: (getattr(self, m), getattr_static(self, m))
-            for m in sorted(list(set(dir(self.__class__)) - set(dir(super()))))
-            if not m.startswith("__")
-        }
-
-        # Make sure we preserve the ordering of declaration
-        ordering = [
-            m for m in list(vars(self.__class__).keys()) if not m.startswith("__")
+        # get all class attribute names include names of ancestors, preserving declaration order
+        cls = self.__class__
+        names_ = [
+            key
+            for klass in reversed(cls.__mro__)
+            for key in klass.__dict__
+            if not key.startswith("__")
         ]
-        self.attrs = {k: initial_attrs[k] for k in ordering} | initial_attrs
+        # unique-ify values, preserving order
+        names_ = list(dict.fromkeys(names_))
 
         # Initialize these ahead of time, may not
         # be set after init if len(precompiles)>0
@@ -113,14 +111,16 @@ class Application:
             | ApplicationStateBlob,
         ] = {}
 
-        for name, (bound_attr, static_attr) in self.attrs.items():
+        for name in names_:
+            bound_attr = getattr(self, name)
             # Check for state vals
+            handled = True
             match bound_attr:
 
                 # Account state
                 case AccountStateValue():
-                    if bound_attr.key is None:
-                        bound_attr.key = Bytes(name)
+                    # if bound_attr.key is None:
+                    #     bound_attr.key = Bytes(name)
                     acct_vals[name] = bound_attr
                 case ReservedAccountStateValue():
                     if bound_attr.key_generator is None:
@@ -150,8 +150,12 @@ class Application:
                     if bound_attr.name is None:
                         bound_attr.name = Bytes(name)
 
+                # other - maybe method
+                case _:
+                    handled = False
+
             # Already dealt with these, move on
-            if name in app_vals or name in acct_vals:
+            if handled:
                 continue
 
             # Check for externals and internal methods
@@ -186,6 +190,7 @@ class Application:
             elif handler_config.method_spec is not None and not handler_config.internal:
                 # Create the ABIReturnSubroutine from the static attr
                 # but override the implementation with the bound version
+                static_attr = getattr_static(self, name)
                 abi_meth = ABIReturnSubroutine(
                     static_attr, overriding_name=handler_config.method_spec.name
                 )
@@ -216,8 +221,9 @@ class Application:
                 if handler_config.referenced_self:
                     setattr(self, name, handler_config.subroutine(bound_attr))
                 else:
+                    static_attr = getattr_static(self, name)
                     setattr(
-                        self.__class__,
+                        cls,
                         name,
                         handler_config.subroutine(static_attr),
                     )
@@ -237,7 +243,7 @@ class Application:
         # If there are no precompiles, we can build the programs
         # with what we already have and don't need to pass an
         # algod client
-        if len(self.precompiles) == 0:
+        if not self.precompiles:
             self.compile()
 
     def compile(self, client: Optional[AlgodClient] = None) -> tuple[str, str]:
@@ -252,12 +258,11 @@ class Application:
         if self.approval_program is not None and self.clear_program is not None:
             return self.approval_program, self.clear_program
 
-        if len(self.precompiles) > 0:
-            # make sure all the precompiles are available
-            for precompile in self.precompiles.values():
-                precompile.compile(client)  # type: ignore
+        # make sure all the precompiles are available
+        for precompile in self.precompiles.values():
+            precompile.compile(client)  # type: ignore
 
-        self.router = Router(
+        router = Router(
             name=self.__class__.__name__,
             bare_calls=BareCallActions(**self.bare_externals),
             descr=self.__doc__,
@@ -266,7 +271,7 @@ class Application:
         # Add method externals
         for _, method_tuple in self.methods.items():
             method, method_config = method_tuple
-            self.router.add_method_handler(
+            router.add_method_handler(
                 method_call=method,
                 method_config=method_config,
                 overriding_name=method.name(),
@@ -277,7 +282,7 @@ class Application:
             self.approval_program,
             self.clear_program,
             self.contract,
-        ) = self.router.compile_program(
+        ) = router.compile_program(
             version=self.teal_version,
             assemble_constants=True,
             optimize=OptimizeOptions(scratch_slots=True),
@@ -344,7 +349,7 @@ class Application:
             client (optional): AlgodClient to be passed to any precompiles
         """
         if self.approval_program is None:
-            if len(self.precompiles) > 0 and client is None:
+            if self.precompiles and client is None:
                 raise Exception(
                     "Approval program empty, if you have precompiles, pass an Algod client to build the precompiles"
                 )

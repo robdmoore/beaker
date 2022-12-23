@@ -6,11 +6,11 @@ intc_0 // 0
 ==
 bnz main_l6
 txna ApplicationArgs 0
-pushbytes 0x6228c682 // "hash_it(string,uint64,application)byte[32]"
+pushbytes 0x101cea00 // "opup_bootstrap(pay)uint64"
 ==
 bnz main_l5
 txna ApplicationArgs 0
-pushbytes 0x101cea00 // "opup_bootstrap(pay)uint64"
+pushbytes 0x6228c682 // "hash_it(string,uint64,application)byte[32]"
 ==
 bnz main_l4
 err
@@ -23,21 +23,22 @@ intc_0 // 0
 !=
 &&
 assert
-txn GroupIndex
-intc_1 // 1
--
-store 9
-load 9
-gtxns TypeEnum
-intc_1 // pay
-==
-assert
-load 9
-callsub opupbootstrap_4
-store 10
+txna ApplicationArgs 1
+store 2
+txna ApplicationArgs 2
+btoi
+store 3
+txna ApplicationArgs 3
+intc_0 // 0
+getbyte
+store 4
+load 2
+load 3
+load 4
+callsub hashit_4
+store 5
 bytec_1 // 0x151f7c75
-load 10
-itob
+load 5
 concat
 log
 intc_1 // 1
@@ -51,22 +52,21 @@ intc_0 // 0
 !=
 &&
 assert
-txna ApplicationArgs 1
+txn GroupIndex
+intc_1 // 1
+-
 store 0
-txna ApplicationArgs 2
-btoi
-store 1
-txna ApplicationArgs 3
-intc_0 // 0
-getbyte
-store 2
 load 0
-load 1
-load 2
-callsub hashit_1
-store 3
+gtxns TypeEnum
+intc_1 // pay
+==
+assert
+load 0
+callsub opupbootstrap_1
+store 1
 bytec_1 // 0x151f7c75
-load 3
+load 1
+itob
 concat
 log
 intc_1 // 1
@@ -91,88 +91,19 @@ create_0:
 intc_1 // 1
 return
 
-// hash_it
-hashit_1:
-store 6
-store 5
-store 4
-load 6
-txnas Applications
-bytec_0 // "ouaid"
-app_global_get
-==
+// opup_bootstrap
+opupbootstrap_1:
+gtxns Amount
+pushint 100000 // 100000
+>=
 assert
-pushint 255 // 255
-callsub callopup_2
-load 4
-extract 2 0
-store 7
-intc_0 // 0
-store 8
-hashit_1_l1:
-load 8
-load 5
-<
-bz hashit_1_l3
-load 7
-sha256
-store 7
-load 8
-intc_1 // 1
-+
-store 8
-b hashit_1_l1
-hashit_1_l3:
-load 7
-retsub
-
-// call_opup
-callopup_2:
-store 11
-load 11
-intc_1 // 1
-==
-bnz callopup_2_l4
-intc_0 // 0
-store 12
-callopup_2_l2:
-load 12
-load 11
-<
-bz callopup_2_l5
-itxn_begin
-intc_2 // appl
-itxn_field TypeEnum
+callsub createopup_2
 bytec_0 // "ouaid"
 app_global_get
-itxn_field ApplicationID
-bytec_2 // "opup()void"
-itxn_field ApplicationArgs
-intc_0 // 0
-itxn_field Fee
-itxn_submit
-load 12
-intc_1 // 1
-+
-store 12
-b callopup_2_l2
-callopup_2_l4:
-itxn_begin
-intc_2 // appl
-itxn_field TypeEnum
-bytec_0 // "ouaid"
-app_global_get
-itxn_field ApplicationID
-bytec_2 // "opup()void"
-itxn_field ApplicationArgs
-intc_0 // 0
-itxn_field Fee
-itxn_submit
-callopup_2_l5:
 retsub
 
 // create_opup
-createopup_3:
+createopup_2:
 itxn_begin
 intc_2 // appl
 itxn_field TypeEnum
@@ -186,9 +117,9 @@ itxn_submit
 intc_0 // 0
 bytec_0 // "ouaid"
 app_global_get_ex
-store 14
-store 13
-load 14
+store 12
+store 11
+load 12
 !
 assert
 bytec_0 // "ouaid"
@@ -196,13 +127,82 @@ itxn CreatedApplicationID
 app_global_put
 retsub
 
-// opup_bootstrap
-opupbootstrap_4:
-gtxns Amount
-pushint 100000 // 100000
->=
-assert
-callsub createopup_3
+// call_opup
+callopup_3:
+store 13
+load 13
+intc_1 // 1
+==
+bnz callopup_3_l4
+intc_0 // 0
+store 14
+callopup_3_l2:
+load 14
+load 13
+<
+bz callopup_3_l5
+itxn_begin
+intc_2 // appl
+itxn_field TypeEnum
 bytec_0 // "ouaid"
 app_global_get
+itxn_field ApplicationID
+bytec_2 // "opup()void"
+itxn_field ApplicationArgs
+intc_0 // 0
+itxn_field Fee
+itxn_submit
+load 14
+intc_1 // 1
++
+store 14
+b callopup_3_l2
+callopup_3_l4:
+itxn_begin
+intc_2 // appl
+itxn_field TypeEnum
+bytec_0 // "ouaid"
+app_global_get
+itxn_field ApplicationID
+bytec_2 // "opup()void"
+itxn_field ApplicationArgs
+intc_0 // 0
+itxn_field Fee
+itxn_submit
+callopup_3_l5:
+retsub
+
+// hash_it
+hashit_4:
+store 8
+store 7
+store 6
+load 8
+txnas Applications
+bytec_0 // "ouaid"
+app_global_get
+==
+assert
+pushint 255 // 255
+callsub callopup_3
+load 6
+extract 2 0
+store 9
+intc_0 // 0
+store 10
+hashit_4_l1:
+load 10
+load 7
+<
+bz hashit_4_l3
+load 9
+sha256
+store 9
+load 10
+intc_1 // 1
++
+store 10
+b hashit_4_l1
+hashit_4_l3:
+load 9
 retsub

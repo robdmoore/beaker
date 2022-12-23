@@ -82,18 +82,16 @@ class LogicSignature:
         self.teal_version = version
         self.program: Optional[str] = None
 
-        # Get initial list of all attrs declared
-        initial_attrs = {
-            m: (getattr(self, m), getattr_static(self, m))
-            for m in sorted(list(set(dir(self.__class__)) - set(dir(super()))))
-            if not m.startswith("__")
-        }
-
-        # Make sure we preserve the ordering of declaration
-        ordering = [
-            m for m in list(vars(self.__class__).keys()) if not m.startswith("__")
+        # get all class attribute names include names of ancestors, preserving declaration order
+        cls = self.__class__
+        names_ = [
+            key
+            for klass in reversed(cls.__mro__)
+            for key in klass.__dict__
+            if not key.startswith("__")
         ]
-        self.attrs = {k: initial_attrs[k] for k in ordering} | initial_attrs
+        # unique-ify values, preserving order
+        names_ = list(dict.fromkeys(names_))
 
         self.methods: dict[str, SubroutineDefinition] = {}
 
@@ -102,7 +100,13 @@ class LogicSignature:
             str, LSigPrecompile | AppPrecompile
         ] = {}  # dummy for now
 
-        for name, (bound_attr, static_attr) in self.attrs.items():
+        self.attrs = {
+            name: (getattr(self, name), getattr_static(self, name)) for name in names_
+        }
+
+        for name in names_:
+            bound_attr = getattr(self, name)
+            static_attr = getattr_static(self, name)
 
             # Check for externals and internal methods
             handler_config = get_handler_config(bound_attr)
@@ -135,9 +139,7 @@ class LogicSignature:
         if self.program is not None:
             return self.program
 
-        template_expressions: list[Expr] = [
-            tv._init_expr() for tv in self.template_variables
-        ]
+        template_expressions = [tv._init_expr() for tv in self.template_variables]
 
         self.program = compileTeal(
             Seq(*template_expressions, self.evaluate()),
