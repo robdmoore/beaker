@@ -12,11 +12,7 @@ def test_simple_logic_signature():
 
     assert len(lsig.template_variables) == 0
     assert len(lsig.methods) == 0
-    assert len(lsig.attrs.keys()) == 2
     assert len(lsig.program) > 0
-
-    assert "compile" in lsig.attrs
-    assert "evaluate" in lsig.attrs
 
     assert lsig.evaluate() == pt.Reject()
 
@@ -34,11 +30,7 @@ def test_evaluate_logic_signature():
 
     assert len(lsig.template_variables) == 0
     assert len(lsig.methods) == 0
-    assert len(lsig.attrs.keys()) == 2
     assert len(lsig.program) > 0
-
-    assert "compile" in lsig.attrs
-    assert "evaluate" in lsig.attrs
 
     assert lsig.evaluate() == pt.Approve()
 
@@ -64,11 +56,7 @@ def test_handler_logic_signature():
 
     assert len(lsig.template_variables) == 0
     assert len(lsig.methods) == 0
-    assert len(lsig.attrs.keys()) == 3
     assert len(lsig.program) > 0
-
-    assert "compile" in lsig.attrs
-    assert "evaluate" in lsig.attrs
 
     # Should not fail
     lsig.evaluate()
@@ -96,12 +84,7 @@ def test_templated_logic_signature():
 
     assert len(lsig.template_variables) == 1
     assert len(lsig.methods) == 0
-    assert len(lsig.attrs.keys()) == 3
     assert len(lsig.program) > 0
-
-    assert "compile" in lsig.attrs
-    assert "evaluate" in lsig.attrs
-    assert "pubkey" in lsig.attrs
 
     assert lsig.pubkey.get_name() == "TMPL_PUBKEY"
 
@@ -155,11 +138,7 @@ def test_different_methods_logic_signature():
 
     assert len(lsig.template_variables) == 0
     assert len(lsig.methods) == 2
-    assert len(lsig.attrs.keys()) == 7
     assert len(lsig.program) > 0
-
-    assert "compile" in lsig.attrs
-    assert "evaluate" in lsig.attrs
 
     # Should not fail
     lsig.evaluate()
