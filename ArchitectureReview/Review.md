@@ -218,3 +218,31 @@ The exact details of what `CompiledApplication` will look like are TBD, but shou
 Renaming `version` parameter in `Application.__init__(version: int = pyteal.MAX_VERSION)` to `teal_version`, to be more explicit. It may be desirable to allow `version` to continue to be specified for some time, but to raise a `DeprecationWarning`. 
 
 Rename methods in `beaker.lib.*` to start with an uppercase. Although going against PEP-8, this prevents collisions with `builtins` such as `min` and `max`, and also follows the useful convention from PyTeal where methods that produce TEAL code (vs just running Python code at transpilation time) start with uppercase such as `Add`, `Or`, `Concat`, etc. 
+
+
+### (4) < transpilation & assembly >
+
+..??
+
+### (5) < decorator changes >
+
+stackable, remove @internal (buggy, + unneeded with (1)), bare=False, expose authorize independently 
+
+### (6) < `beaker.state` internal interfaces >
+
+temporary measure, allow user extension and simplify beaker code significantly
+
+
+## Future recommendations
+
+### (a) state abstractions
+
+### (b) Tmpl, app spec??
+
+### (c) authorize composability
+
+### (d) Box automations
+
+### (e) PyTEAL: encode Expr TealType in type system
+
+### (f) App & LSig references (ie enhance/simplify precompile)
