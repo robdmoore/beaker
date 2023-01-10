@@ -24,11 +24,15 @@ The recommended areas for future improvement are:
 
 ## Immediate recommendations
 
-### Replace the class-based structure with an instance based one
+### (1) Replace the class-based structure with an instance based one
+
+#### What?
 
 Beaker is currently structured around the `beaker.Application` class, which is expected to be sub-classed, and to hold the state variables (from `beaker.state.*`) and contain methods which are forwarded to the `pyteal.abi.Router` instance created during `Application.compile(...)` based on a decorator from `beaker.decorators.*`. We propose replacing this with an "instance based structure", drawing inspiration from highly popular Python web frameworks such as `flask`.
 
 This change will simplify Beaker's code, and, more importantly, reduce the potential for end-user error.
+
+#### Why?
 
 User-facing benefits:
 1. The current structure, by encouraging & supporting bound instance methods, is a potential source of confusion for users new to writing smart contracts / PyTeal / so on. The distinction between what runs on `beaker.Application` instantiation, evaluation by PyTeal during compile, and finally what runs on-chain, can be difficult to grasp at first. One might assume (wrongly) that Beaker is somehow maintaining the state of `self.*` between methods, but this is not the case. Contrast this with Solidity, for example.
@@ -163,3 +167,47 @@ def decrement(*, output: abi.Uint64):
     )
 
 ```
+
+### (2) Defer compilation
+
+#### What?
+
+Currently, `beaker.Application.compile()` is called as part of `__init__()`, assuming there are no `precompiles` defined. We recommend that `compile()` always be deferred to a later point, and further that `compile()` does not mutate `Application` in any way, but instead returns a new object.
+
+#### Why?
+
+The deferment of the `compile()` call is actually a necessary part of recommendation #1 that we have skipped over thus far, but would be recommended anyway.
+
+The immediate `compile()` has issues such as requiring implementors (ie subclasses) to call `super().__init__()` as a final step in their own `__init__` method - any code that runs after the super init call will have no effect on the application produced.
+
+Immediate compilation also reduces the control the user has over the output. Although currently the only parameter that `compile` takes is a `client`, it might be useful to add (optional) parameters here to control the compilation, like with the optimisations applied as an example. If new optimisations are introduced and enabled by default, this could alter the output of any existing contracts, which might not be desired.
+
+The separation of compiled state outside of `Application` simplifies the design, and can be done mostly transparently to end-users.
+
+The separation of compiled state will also benefit future interoperability. Once `beaker.client` is split into a separate package, if the compiled state can be both generated from a beaker Application object _or_ loaded from disk (or similar), this means Beaker's ApplicationClient could be used in more situations.
+
+#### Before & After - user's perspective
+
+For most use cases, this should be a relatively small change.
+
+We believe there are two common usage scenarios, currently:
+
+1. Output the `Application` via `Application.dump(...)`
+2. Interact with the `Application` by passing it to `ApplicationClient(app=..., ...)`.
+
+We propose maintaining those two scenarios without any immediate external changes, but internally:
+
+1. `Application.dump(...)` will call `Application.compile().dump()`, and potentially trigger a `DeprecationWarning`.
+2. `ApplicationClient(app=..., ...)` will call `Application.compile()` and not retain any reference to `app`.
+
+To make use of scenarios 1 & 2, or to control compilation parameters, a user should also be able to:
+
+```python
+app = Application(...)
+compiled_app: CompiledApplication = app.compile(...)
+compiled_app.dump(...)
+client = ApplicationClient(app=compiled_app, ...)
+```
+We suggest also potentially renaming `CompiledApplication.dump()`, perhaps to something along the lines of `serialize()`.
+
+The exact details of what `CompiledApplication` will look like are TBD, but should be driven by the principles outlined in the "Why?" section above.
