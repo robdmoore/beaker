@@ -211,3 +211,10 @@ client = ApplicationClient(app=compiled_app, ...)
 We suggest also potentially renaming `CompiledApplication.dump()`, perhaps to something along the lines of `serialize()`.
 
 The exact details of what `CompiledApplication` will look like are TBD, but should be driven by the principles outlined in the "Why?" section above.
+
+
+### (3) Renamings
+
+Renaming `version` parameter in `Application.__init__(version: int = pyteal.MAX_VERSION)` to `teal_version`, to be more explicit. It may be desirable to allow `version` to continue to be specified for some time, but to raise a `DeprecationWarning`. 
+
+Rename methods in `beaker.lib.*` to start with an uppercase. Although going against PEP-8, this prevents collisions with `builtins` such as `min` and `max`, and also follows the useful convention from PyTeal where methods that produce TEAL code (vs just running Python code at transpilation time) start with uppercase such as `Add`, `Or`, `Concat`, etc. 
